@@ -1,0 +1,36 @@
+cd ~/rat-agent
+
+rm -rf build/classes build/classes.dex build/res.zip build/base.apk agent.apk
+mkdir -p build/classes
+
+javac -source 1.8 -target 1.8 \
+  -bootclasspath $ANDROID_JAR \
+  -classpath $ANDROID_JAR \
+  -d build/classes \
+  src/com/rk/agent/*.java
+
+d8 --output build/ --lib $ANDROID_JAR --min-api 26 \
+  $(find build/classes -name "*.class")
+
+aapt2 compile --dir res -o build/res.zip
+
+aapt2 link -o build/base.apk \
+  -I $ANDROID_JAR \
+  --manifest AndroidManifest.xml \
+  --min-sdk-version 26 --target-sdk-version 34 \
+  build/res.zip
+
+cd build && zip -uj base.apk classes.dex && cd ..
+
+apksigner sign \
+  --ks rat.keystore --ks-key-alias rat \
+  --ks-pass pass:ratpass --key-pass pass:ratpass \
+  --out agent.apk build/base.apk
+
+apksigner verify agent.apk && echo OK
+cp agent.apk /sdcard/Download/
+
+
+=================Simple Installing=============
+cd chomd +x build.sh
+./build.sh
